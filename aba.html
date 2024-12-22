@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Web App</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+    <h1>Настройка рассылки</h1>
+    <form id="settings-form">
+        <label>App ID: <input type="text" id="app-id" required></label><br>
+        <label>API Hash: <input type="text" id="api-hash" required></label><br>
+        <label>Телефон: <input type="text" id="phone" required></label><br>
+        <button type="button" onclick="sendAuthRequest()">Отправить код</button>
+    </form>
+    <div id="code-form" style="display:none;">
+        <label>Код подтверждения: <input type="text" id="code" required></label><br>
+        <button type="button" onclick="verifyCode()">Подтвердить</button>
+    </div>
+
+    <script>
+        const tg = Telegram.WebApp;
+        tg.expand();
+
+        async function sendAuthRequest() {
+            const appId = document.getElementById("app-id").value;
+            const apiHash = document.getElementById("api-hash").value;
+            const phone = document.getElementById("phone").value;
+
+            const response = await fetch("http://localhost:5000/api/auth", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ app_id: appId, api_hash: apiHash, phone: phone }),
+            });
+
+            const data = await response.json();
+            if (data.status === "code_sent") {
+                alert("Код отправлен!");
+                document.getElementById("settings-form").style.display = "none";
+                document.getElementById("code-form").style.display = "block";
+                localStorage.setItem("phone_code_hash", data.phone_code_hash);
+                localStorage.setItem("app_id", appId);
+                localStorage.setItem("api_hash", apiHash);
+                localStorage.setItem("phone", phone);
+            } else {
+                alert(data.message || "Ошибка");
+            }
+        }
+
+        async function verifyCode() {
+            const code = document.getElementById("code").value;
+            const phoneCodeHash = localStorage.getItem("phone_code_hash");
+            const appId = localStorage.getItem("app_id");
+            const apiHash = localStorage.getItem("api_hash");
+            const phone = localStorage.getItem("phone");
+
+            const response = await fetch("http://localhost:5000/api/verify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ phone, code, app_id: appId, api_hash: apiHash, phone_code_hash: phoneCodeHash }),
+            });
+
+            const data = await response.json();
+            if (data.status === "authorized") {
+                alert("Авторизация успешна!");
+            } else {
+                alert(data.message || "Ошибка");
+            }
+        }
+    </script>
+</body>
+</html>
