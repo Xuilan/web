@@ -3,125 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telegram Web App</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f4f4f4;
-        }
-        .container {
-            background: #ffffff;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-            padding: 20px;
-            max-width: 400px;
-            width: 100%;
-            text-align: center;
-        }
-        input {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-        button {
-            width: 100%;
-            padding: 10px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
-        .error {
-            color: red;
-        }
-    </style>
+    <title>Telegram Authorization</title>
 </head>
 <body>
-    <div class="container">
-        <h1>Telegram Auth</h1>
-        <div id="authForm">
-            <input type="text" id="appId" placeholder="App ID" required />
-            <input type="text" id="apiHash" placeholder="API Hash" required />
-            <input type="text" id="phone" placeholder="Phone Number" required />
-            <button onclick="sendAuthCode()">Отправить код</button>
-            <p class="error" id="authError"></p>
+    <h1>Telegram Login</h1>
+    <form id="authForm">
+        <div>
+            <label for="phone">Phone Number:</label>
+            <input type="text" id="phone" name="phone" required>
         </div>
-        <div id="codeForm" style="display: none;">
-            <input type="text" id="code" placeholder="Confirmation Code" required />
-            <button onclick="verifyCode()">Подтвердить код</button>
-            <p class="error" id="codeError"></p>
+        <div>
+            <label for="appId">App ID:</label>
+            <input type="text" id="appId" name="appId" required>
         </div>
+        <div>
+            <label for="apiHash">API Hash:</label>
+            <input type="text" id="apiHash" name="apiHash" required>
+        </div>
+        <button type="submit">Request Code</button>
+    </form>
+
+    <div id="verifyForm" style="display:none;">
+        <h2>Enter the Code</h2>
+        <input type="text" id="code" placeholder="Enter the code">
+        <button id="verifyCodeButton">Verify Code</button>
     </div>
 
     <script>
-        const serverUrl = "https://thin-inquisitive-mastodon.glitch.me"; // Замените на ваш URL Glitch
+        document.getElementById('authForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
 
-        async function sendAuthCode() {
-            const appId = document.getElementById("appId").value;
-            const apiHash = document.getElementById("apiHash").value;
-            const phone = document.getElementById("phone").value;
-            const authError = document.getElementById("authError");
-
-            authError.textContent = "";
+            const phone = document.getElementById('phone').value;
+            const appId = document.getElementById('appId').value;
+            const apiHash = document.getElementById('apiHash').value;
 
             try {
-                const response = await fetch(`${serverUrl}/api/auth`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ app_id: appId, api_hash: apiHash, phone }),
+                const response = await fetch('/api/requestCode', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ phone, appId, apiHash }),
                 });
 
-                const data = await response.json();
-
-                if (data.status === "code_sent") {
-                    document.getElementById("authForm").style.display = "none";
-                    document.getElementById("codeForm").style.display = "block";
-                    window.localStorage.setItem("phone_code_hash", data.phone_code_hash);
+                const result = await response.json();
+                if (response.ok) {
+                    alert(result.message);
+                    document.getElementById('authForm').style.display = 'none';
+                    document.getElementById('verifyForm').style.display = 'block';
                 } else {
-                    authError.textContent = data.message || "Ошибка при отправке кода.";
+                    alert(result.error || 'Something went wrong');
                 }
-            } catch (err) {
-                authError.textContent = "Ошибка подключения к серверу.";
+            } catch (error) {
+                console.error(error);
+                alert('Error during the authorization process.');
             }
-        }
+        });
 
-        async function verifyCode() {
-            const code = document.getElementById("code").value;
-            const phoneCodeHash = window.localStorage.getItem("phone_code_hash");
-            const codeError = document.getElementById("codeError");
-
-            codeError.textContent = "";
+        document.getElementById('verifyCodeButton').addEventListener('click', async () => {
+            const phone = document.getElementById('phone').value;
+            const code = document.getElementById('code').value;
 
             try {
-                const response = await fetch(`${serverUrl}/api/verify`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ code, phone_code_hash: phoneCodeHash }),
+                const response = await fetch('/api/verifyCode', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ phone, code }),
                 });
 
-                const data = await response.json();
-
-                if (data.status === "authorized") {
-                    alert("Вы успешно авторизованы!");
-                    document.getElementById("codeForm").style.display = "none";
+                const result = await response.json();
+                if (response.ok) {
+                    alert(result.message);
                 } else {
-                    codeError.textContent = data.message || "Ошибка авторизации.";
+                    alert(result.error || 'Verification failed.');
                 }
-            } catch (err) {
-                codeError.textContent = "Ошибка подключения к серверу.";
+            } catch (error) {
+                console.error(error);
+                alert('Error during verification.');
             }
-        }
+        });
     </script>
 </body>
 </html>
